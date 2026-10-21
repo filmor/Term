@@ -18,7 +18,7 @@ authors = [
 Homepage = "https://github.com/Pyrlang/Term"
 
 [project.optional-dependencies]
-dev = ["pytest"]
+dev = ["pytest", "ty"]
 docs = [
     "Jinja2>=2.10.1",
     "MarkupSafe>=1.0",
@@ -30,6 +30,9 @@ docs = [
 [tool.setuptools]
 packages = ["term"]
 zip-safe = false
+
+[tool.setuptools.package-data]
+term = ["py.typed", "*.pyi"]
 
 [[tool.setuptools-rust.ext-modules]]
 target = "term.native_codec_impl"

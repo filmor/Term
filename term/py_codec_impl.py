@@ -20,13 +20,13 @@ from __future__ import annotations
 
 import math
 import struct
-from collections.abc import Callable
-from typing import Any
+from collections.abc import Callable, Sequence
+from typing import Any, NoReturn
 from zlib import decompressobj
 
 from term import util
 from term.atom import Atom, StrictAtom
-from term.basetypes import Term
+from term.basetypes import DecodeOptions, EncodeOptions, Hooks
 from term.bitstring import BitString
 from term.fun import Fun
 from term.list import NIL, ImproperList
@@ -70,7 +70,7 @@ TAG_STRING_EXT = 107
 TAG_NEW_PID_EXT = 88
 TAG_NEWER_REF_EXT = 90
 
-EncodeHookType = dict[str, Callable[[Any], Any]] | None
+EncodeHookType = Hooks | None
 
 
 # This is Python variant of codec exception when Python impl is used.
@@ -80,7 +80,7 @@ class PyCodecError(Exception):
     pass
 
 
-def incomplete_data(where=""):
+def incomplete_data(where: str = "") -> NoReturn:
     """This is called from many places to report incomplete data while
     decoding.
     """
@@ -90,7 +90,9 @@ def incomplete_data(where=""):
         raise PyCodecError("Incomplete data")
 
 
-def binary_to_term(data: bytes, options: dict | None = None) -> tuple[Term, bytes]:
+def binary_to_term(
+    data: bytes, options: DecodeOptions | None = None
+) -> tuple[Any, bytes]:
     """Strip 131 header and unpack if the data was compressed.
 
     :param data: The incoming encoded data with the 131 byte
@@ -125,14 +127,14 @@ def binary_to_term(data: bytes, options: dict | None = None) -> tuple[Term, byte
     val, rem = binary_to_term_2(decode_data, options)
     type_name_ref = type(val).__name__
     if type_name_ref in decode_hook:
-        return decode_hook.get(type_name_ref)(val), rem
+        return decode_hook[type_name_ref](val), rem
     else:
         return val, rem
 
 
 def _bytes_to_atom(
-    name: bytes, encoding: str, create_atom_fn: Callable
-) -> Atom | bool | None:
+    name: bytes, encoding: str, create_atom_fn: Callable[[bytes, str], Any]
+) -> Any:
     """Recognize familiar atom values."""
     if name == b"true":
         return True
@@ -144,7 +146,9 @@ def _bytes_to_atom(
         return create_atom_fn(name, encoding)
 
 
-def _get_create_atom_fn(opt: str, create_fn: Callable[[str], Atom]) -> Callable:
+def _get_create_atom_fn(
+    opt: str, create_fn: Callable[[str], Any] | None
+) -> Callable[[bytes, str], Any]:
     def _create_atom_bytes(name: bytes, _encoding: str) -> bytes:
         return name
 
@@ -157,10 +161,11 @@ def _get_create_atom_fn(opt: str, create_fn: Callable[[str], Atom]) -> Callable:
     def _create_atom_strict_atom(name: bytes, encoding: str) -> Atom:
         return StrictAtom(name.decode(encoding))
 
-    def _create_atom_custom(name: bytes, encoding: str) -> object:
-        return create_fn(name.decode(encoding))
-
     if create_fn is not None:
+
+        def _create_atom_custom(name: bytes, encoding: str) -> Any:
+            return create_fn(name.decode(encoding))
+
         return _create_atom_custom
     if opt == "Atom":
         return _create_atom_atom
@@ -176,10 +181,10 @@ def _get_create_atom_fn(opt: str, create_fn: Callable[[str], Atom]) -> Callable:
     )
 
 
-def _get_create_str_fn(opt: str) -> Callable:
+def _get_create_str_fn(opt: str) -> Callable[[bytes], str | bytes | list[int]]:
     """A tool function to create either a str or bytes from a 8-bit string."""
 
-    def _create_int_list(name: bytes) -> list:
+    def _create_int_list(name: bytes) -> list[int]:
         return list(name)
 
     def _create_str_bytes(name: bytes) -> bytes:
@@ -198,7 +203,9 @@ def _get_create_str_fn(opt: str) -> Callable:
     raise PyCodecError("Option 'byte_string' is '%s'; expected 'str', 'bytes'")
 
 
-def binary_to_term_2(data: bytes, options: dict | None = None) -> tuple[Term, bytes]:
+def binary_to_term_2(
+    data: bytes, options: DecodeOptions | None = None
+) -> tuple[Any, bytes]:
     """Proceed decoding after leading tag has been checked and removed.
 
     Erlang lists are decoded into ``term.List`` object, whose ``elements_``
@@ -467,7 +474,9 @@ def binary_to_term_2(data: bytes, options: dict | None = None) -> tuple[Term, by
     raise PyCodecError(f"Unknown tag {data[0]}")
 
 
-def _pack_list(lst, tail, encode_hook: EncodeHookType):
+def _pack_list(
+    lst: Sequence[object], tail: object, encode_hook: EncodeHookType
+) -> bytes:
     if len(lst) == 0:
         return bytes([TAG_NIL_EXT])
 
@@ -475,11 +484,11 @@ def _pack_list(lst, tail, encode_hook: EncodeHookType):
     for item in lst:
         data += term_to_binary_2(item, encode_hook)
 
-    tail = term_to_binary_2(tail, encode_hook)
-    return bytes([TAG_LIST_EXT]) + util.to_u32(len(lst)) + data + tail
+    encoded_tail = term_to_binary_2(tail, encode_hook)
+    return bytes([TAG_LIST_EXT]) + util.to_u32(len(lst)) + data + encoded_tail
 
 
-def _pack_string(val):
+def _pack_string(val: str) -> bytes:
     if len(val) == 0:
         return _pack_list([], [], encode_hook=None)
 
@@ -489,7 +498,7 @@ def _pack_string(val):
     return _pack_list(list(val), [], encode_hook=None)
 
 
-def _pack_tuple(val, encode_hook: EncodeHookType):
+def _pack_tuple(val: tuple[object, ...], encode_hook: EncodeHookType) -> bytes:
     if len(val) < 256:
         data = bytes([TAG_SMALL_TUPLE_EXT, len(val)])
     else:
@@ -501,7 +510,7 @@ def _pack_tuple(val, encode_hook: EncodeHookType):
     return data
 
 
-def _pack_dict(val: dict, encode_hook: EncodeHookType) -> bytes:
+def _pack_dict(val: dict[Any, Any], encode_hook: EncodeHookType) -> bytes:
     data = bytes([TAG_MAP_EXT]) + util.to_u32(len(val))
     for k, v in val.items():
         data += term_to_binary_2(k, encode_hook)
@@ -509,7 +518,7 @@ def _pack_dict(val: dict, encode_hook: EncodeHookType) -> bytes:
     return data
 
 
-def _pack_int(val: int):
+def _pack_int(val: int) -> bytes:
     if 0 <= val < 256:
         return bytes([TAG_SMALL_INT, val])
     size = val.bit_length()
@@ -538,7 +547,7 @@ def _pack_atom(text: str) -> bytes:
 
 
 # TODO: maybe move this into pid class
-def _pack_pid(val) -> bytes:
+def _pack_pid(val: Pid) -> bytes:
     data = (
         bytes([TAG_NEW_PID_EXT])
         + _pack_atom(val.node_name_)
@@ -550,7 +559,7 @@ def _pack_pid(val) -> bytes:
 
 
 # TODO: maybe move this into ref class
-def _pack_ref(val) -> bytes:
+def _pack_ref(val: Reference) -> bytes:
     data = (
         bytes([TAG_NEWER_REF_EXT])
         + util.to_u16(len(val.id_) // 4)
@@ -561,7 +570,7 @@ def _pack_ref(val) -> bytes:
     return data
 
 
-def _is_a_simple_object(obj):
+def _is_a_simple_object(obj: object) -> bool:
     """Check whether a value can be simply encoded by term_to_binary and
     does not require class unwrapping by `serialize_object`.
     """
@@ -576,7 +585,9 @@ def _is_a_simple_object(obj):
     )
 
 
-def generic_serialize_object(obj, cycle_detect: set[int] | None = None):
+def generic_serialize_object(
+    obj: object, cycle_detect: set[int] | None = None
+) -> tuple[tuple[bytes, dict[bytes, Any]] | None, set[int]]:
     """Given an arbitraty Python object creates a tuple (ClassName, {Fields}).
     A fair effort is made to avoid infinite recursion on cyclic objects.
     :param obj: Arbitrary object to encode
@@ -609,7 +620,7 @@ def generic_serialize_object(obj, cycle_detect: set[int] | None = None):
     return (bytes(object_name, "latin1"), fields), cycle_detect
 
 
-def _pack_str(val):
+def _pack_str(val: str) -> bytes:
     str_bytes = bytes(val, "utf8")
     len_str_bytes = len(str_bytes)
     len_val = len(val)
@@ -639,7 +650,7 @@ def _pack_float(val: float) -> bytes:
     return bytes([TAG_NEW_FLOAT_EXT]) + struct.pack(">d", val)
 
 
-def _pack_binary(data, last_byte_bits):
+def _pack_binary(data: bytes, last_byte_bits: int) -> bytes:
     if last_byte_bits == 8:
         return bytes([TAG_BINARY_EXT]) + util.to_u32(len(data)) + data
 
@@ -651,7 +662,7 @@ def _pack_binary(data, last_byte_bits):
     )
 
 
-def term_to_binary_2(val: Any, encode_hook: EncodeHookType) -> bytes:
+def term_to_binary_2(val: object, encode_hook: EncodeHookType) -> bytes:
     """Erlang lists are decoded into term.List object, whose ``elements_``
     field contains the data, ``tail_`` field has the optional tail and a
     helper function exists to assist with extracting an unicode string.
@@ -675,26 +686,25 @@ def term_to_binary_2(val: Any, encode_hook: EncodeHookType) -> bytes:
                 f"term_to_binary: No hook function for type {type_name_ref}"
             )
 
-    type_val = type(val)
-    if type_val == int:
+    if type(val) is int:
         return _pack_int(val)
 
-    elif type_val == float:
+    elif type(val) is float:
         return _pack_float(val)
 
-    elif type_val == str:
+    elif type(val) is str:
         return _pack_str(val)
 
-    elif type_val == bool:
+    elif type(val) is bool:
         return _pack_atom("true") if val else _pack_atom("false")
 
-    elif type_val == list:
+    elif type(val) is list:
         return _pack_list(val, [], encode_hook)
 
-    elif type_val == tuple:
+    elif type(val) is tuple:
         return _pack_tuple(val, encode_hook)
 
-    elif type_val == dict:
+    elif type(val) is dict:
         return _pack_dict(val, encode_hook)
 
     elif val is None:
@@ -712,7 +722,7 @@ def term_to_binary_2(val: Any, encode_hook: EncodeHookType) -> bytes:
     elif isinstance(val, Reference):
         return _pack_ref(val)
 
-    elif type_val == bytes:
+    elif type(val) is bytes:
         return _pack_binary(val, 8)
 
     elif isinstance(val, BitString):
@@ -735,7 +745,7 @@ def term_to_binary_2(val: Any, encode_hook: EncodeHookType) -> bytes:
         return term_to_binary_2(catch_all(val), encode_hook)
 
 
-def term_to_binary(val, opt: dict | None = None) -> bytes:
+def term_to_binary(val: object, opt: EncodeOptions | None = None) -> bytes:
     """Prepend the 131 header byte to encoded data.
     :param val the value to encode
     :param opt:

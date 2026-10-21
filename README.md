@@ -56,6 +56,17 @@ uv run --extra dev pytest
 The tests exercise both codecs and require a working Rust extension.
 Documentation dependencies can be installed with `uv sync --extra docs`.
 
+The package includes type annotations and stubs for the native codec. Check
+the types with:
+
+```
+uv run --extra dev ty check term
+```
+
+Codec options are described by `DecodeOptions` and `EncodeOptions` in
+`term.basetypes`. Decoded values are typed as `Any`, since custom atom factories
+and decode hooks can return arbitrary Python objects.
+
 
 ## Atoms
 

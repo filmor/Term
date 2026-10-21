@@ -14,19 +14,21 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from term.basetypes import BaseTerm
 
-NIL = []  # type: List
+NIL: list[Any] = []
 
 
-class ImproperList(list, BaseTerm):
+class ImproperList(list[Any], BaseTerm):
     """A simple data holder used to pass improper lists back to Erlang.
     An Erlang improper list looks like `[1, 2, 3 | 4]` where 4 takes
     tail slot of last list cell instead of `NIL`. This is a rare data type
     and very likely you will not ever need it.
     """
 
-    def __init__(self, elements: list, tail=None):
+    def __init__(self, elements: list[Any], tail: Any = None) -> None:
         """tail is optional, if omitted, the last element in elements
         `elements[-1]` will be considered to be the tail. if it's
         present it will be appended to the list so it becomes `self[-1]`
@@ -36,15 +38,15 @@ class ImproperList(list, BaseTerm):
             self.append(tail)
 
     @property
-    def _elements(self):
+    def _elements(self) -> list[Any]:
         return self[:-1]
 
     @property
-    def _tail(self):
+    def _tail(self) -> Any:
         return self[-1]
 
 
-def list_to_unicode_str(lst: list) -> str:
+def list_to_unicode_str(lst: list[int]) -> str:
     """A helper function to convert a list of large integers incoming from
     Erlang into a unicode string."""
     return "".join(map(chr, lst))

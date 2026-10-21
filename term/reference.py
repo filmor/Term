@@ -16,7 +16,7 @@ import struct
 import time
 
 from term import Atom, util
-from term.basetypes import BaseRef, Term
+from term.basetypes import BaseRef
 
 REF_MARKER = "pyrlang.Ref"
 
@@ -27,7 +27,7 @@ class Reference(BaseRef):
     """
 
     @staticmethod
-    def create(node_name: str, creation: int):
+    def create(node_name: str, creation: int) -> "Reference":
         """Construct a (most possibly) unique ref with random bytes and time
         :param node_name: string, not a Node object
         :param creation: int value 0, 1 or 2 from node's distribution object
@@ -37,7 +37,7 @@ class Reference(BaseRef):
         rand_bytes = rand_val.to_bytes(length=12, byteorder="big", signed=False)
         return Reference(node_name=node_name, creation=creation, refid=rand_bytes)
 
-    def __init__(self, node_name: Term, creation: int, refid: bytes) -> None:
+    def __init__(self, node_name: str, creation: int, refid: bytes) -> None:
         self.node_name_ = Atom.from_string_or_atom(node_name)
         """ Node the ref comes from. NOTE: native codec assumes this is a string. """
 
@@ -60,7 +60,7 @@ class Reference(BaseRef):
 
     # Eq, Ne and Hash are used for having this class as a dict key
 
-    def equals(self, other) -> bool:
+    def equals(self, other: object) -> bool:
         return (
             isinstance(other, Reference)
             and self.node_name_ == other.node_name_
@@ -70,8 +70,8 @@ class Reference(BaseRef):
 
     __eq__ = equals
 
-    def __ne__(self, other):
+    def __ne__(self, other: object) -> bool:
         return not self.equals(other)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash((REF_MARKER, self.node_name_, self.id_, self.creation_))

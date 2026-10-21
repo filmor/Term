@@ -13,4 +13,4 @@ features = ["extension-module"]
 
 [dependencies]
 flate2 = "1"
-thiserror = "1"
+thiserror = "2"

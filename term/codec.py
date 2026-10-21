@@ -2,11 +2,13 @@
 and then if import fails, uses Python codec implementation which is slower
 but always works.
 """
+
 from __future__ import annotations
 
 import logging
+from typing import Any, cast
 
-from term.basetypes import Term
+from term.basetypes import DecodeOptions, EncodeOptions, Hooks, LegacyEncodeOptions
 
 LOG = logging.getLogger("term")
 
@@ -19,7 +21,11 @@ except ImportError:
     import term.py_codec_impl as co_impl
 
 
-def binary_to_term(data: bytes, options=None, decode_hook=None) -> tuple[Term, bytes]:
+def binary_to_term(
+    data: bytes,
+    options: DecodeOptions | None = None,
+    decode_hook: Hooks | None = None,
+) -> tuple[Any, bytes]:
     """
     Strip 131 header and unpack if the data was compressed.
 
@@ -39,13 +45,17 @@ def binary_to_term(data: bytes, options=None, decode_hook=None) -> tuple[Term, b
                           data is incomplete or corrupted
     :returns: Value and Remaining unconsumed bytes
     """
-    opt = options if options else {}
+    opt: DecodeOptions = options if options else {}
     if decode_hook:
         opt["decode_hook"] = decode_hook
     return co_impl.binary_to_term(data, opt)
 
 
-def term_to_binary(term: object, options=None, encode_hook=None):
+def term_to_binary(
+    term: object,
+    options: EncodeOptions | LegacyEncodeOptions | None = None,
+    encode_hook: Hooks | None = None,
+) -> bytes:
     """
     Prepend the 131 header byte to encoded data.
     :param options: None or a dict of options with key/values "encode_hook": f where f
@@ -60,10 +70,11 @@ def term_to_binary(term: object, options=None, encode_hook=None):
                 object types.
     :returns: Bytes, the term object encoded with erlang binary term format
     """
-    opt = options if options else {}
-    if options and callable(options.get("encode_hook", {})):
+    opt: EncodeOptions = cast(EncodeOptions, options) if options else {}
+    legacy_hook = options.get("encode_hook") if options else None
+    if callable(legacy_hook):
         # legacy encode_hook as single function transformed to 'catch_all' in new encode_hook dict
-        opt["encode_hook"] = {"catch_all": options.get("encode_hook")}
+        opt["encode_hook"] = {"catch_all": legacy_hook}
     elif encode_hook:
         opt["encode_hook"] = encode_hook
     return co_impl.term_to_binary(term, opt)

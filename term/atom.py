@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from term.basetypes import BaseTerm, Term
+from term.basetypes import BaseTerm
 
 ATOM_MARKER = "pyrlang.Atom"
 
@@ -24,12 +24,12 @@ class Atom(str, BaseTerm):
         {Atom('foo'): 1, 'foo': 2} == {'foo': 2}
     """
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         the_repr = super().__repr__()
         return f"Atom({the_repr})"
 
     @staticmethod
-    def from_string_or_atom(s: Term) -> "Atom":
+    def from_string_or_atom(s: object) -> "Atom":
         """Create an Atom from a string or return unchanged if it was an atom."""
         return s if isinstance(s, Atom) else Atom(s)
 
@@ -47,8 +47,8 @@ class StrictAtom(Atom):
         the_repr = super().__repr__()
         return f"Strict{the_repr}"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.__repr__()
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash((ATOM_MARKER, super().__hash__()))
