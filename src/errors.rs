@@ -14,7 +14,7 @@
 
 use std::{convert::From, str::Utf8Error};
 
-use cpython::*;
+use pyo3::{CastError, PyErr};
 
 use crate::reader::ReadError;
 
@@ -59,33 +59,14 @@ impl From<PyErr> for CodecError {
     }
 }
 
-impl From<CodecError> for PyErr {
-    /// Somehow this works. Create a PyErr struct without traceback, containing
-    /// a PyCodecError created from Rust CodecError with string explanation.
-    fn from(err: CodecError) -> PyErr {
-        let gil = Python::acquire_gil();
-        let py = gil.python();
-        let ty = py.get_type::<PyCodecError>();
-
-        // CodecErrors are formatted using #[fail...] attribute format string
-        let err_str = format!("{}", err);
-        let py_str = PyString::new(py, &err_str);
-        let noargs = PyTuple::new(py, &[py_str.into_object()]);
-        let err_val = ty.call(py, noargs, None).unwrap();
-
-        let tyo = ty.into_object();
-        PyErr {
-            ptype: tyo,
-            pvalue: Some(err_val),
-            ptraceback: None,
-        }
+impl From<CastError<'_, '_>> for CodecError {
+    fn from(err: CastError<'_, '_>) -> Self {
+        PyErr::from(err).into()
     }
 }
 
-/// Repacks CodecResult<T> into PyResult<T>
-pub fn pyresult_from<T>(r: Result<T, CodecError>) -> Result<T, PyErr> {
-    match r {
-        Ok(x) => Ok(x),
-        Err(e) => Err(PyErr::from(e)),
+impl From<CodecError> for PyErr {
+    fn from(err: CodecError) -> PyErr {
+        PyCodecError::new_err(err.to_string())
     }
 }

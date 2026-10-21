@@ -22,7 +22,9 @@ If you just run
 ```
 pip install pyrlang-term
 ```
-the pure python version will be installed unless there exists a pre built binary.
+an `abi3` wheel will be installed if one is available for your platform.
+Otherwise, installation builds the native extension from source and requires
+Rust.
 
 If you want to build the native one, you'll need rust and a few more packages.
 
@@ -32,8 +34,12 @@ To install rust (from https://www.rust-lang.org/tools/install):
 curl https://sh.rustup.rs -sSf | sh
 ```
 
-Build requirements are installed automatically from `pyproject.toml`. If the
-Rust extension cannot be built, installation falls back to the Python codec.
+Build requirements, including maturin, are installed automatically from
+`pyproject.toml`. The Python codec remains available as `term.py_codec_impl`.
+
+The native extension uses PyO3 with Python's stable ABI (`abi3`), targeting
+Python 3.10 and later. A single native wheel per platform supports these Python
+versions without rebuilding for each interpreter.
 
 ### From Source
 
@@ -41,9 +47,10 @@ Rust extension cannot be built, installation falls back to the Python codec.
 2. Install [uv](https://docs.astral.sh/uv/getting-started/installation/).
 3. Go to the Term directory and run `uv sync --extra dev`.
 
-Package metadata, optional dependencies, and the Rust extension configuration
+Package metadata, optional dependencies, and the maturin build configuration
 are defined in `pyproject.toml`. To build a source distribution and wheel, run
-`uv build`. Rust sources are included in source distributions via `MANIFEST.in`.
+`uv build`. Maturin includes the Python package and Rust sources in source
+distributions and tags native wheels as `cp310-abi3`.
 
 ## Testing
 

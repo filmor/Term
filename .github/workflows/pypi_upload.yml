@@ -13,15 +13,20 @@ on:
 
 jobs:
   upload:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
         with:
           python-version: '3.8'
-      - uses: dawidd6/action-download-artifact@v2
+      - uses: dawidd6/action-download-artifact@v6
         with:
           workflow: build.yml
+          path: downloads
+      - name: Collect distributions
+        run: |
+          mkdir -p artifact
+          find downloads -type f \( -name '*.whl' -o -name '*.tar.gz' \) -exec cp {} artifact/ \;
       - name: show all data we've got to work with
         run: ls -R
       - name: Publish package to Test Pypi

@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=62.4", "setuptools-rust>=1.7"]
-build-backend = "setuptools.build_meta"
+requires = ["maturin>=1.9,<2"]
+build-backend = "maturin"
 
 [project]
 name = "pyrlang-term"
@@ -27,17 +27,10 @@ docs = [
     "Sphinx>=1.6.2",
 ]
 
-[tool.setuptools]
-packages = ["term"]
-zip-safe = false
-
-[tool.setuptools.package-data]
-term = ["py.typed", "*.pyi"]
-
-[[tool.setuptools-rust.ext-modules]]
-target = "term.native_codec_impl"
-binding = "RustCPython"
-optional = true
+[tool.maturin]
+bindings = "pyo3"
+module-name = "term.native_codec_impl"
+python-source = "."
 
 [tool.pytest.ini_options]
 testpaths = ["test"]

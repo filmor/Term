@@ -12,16 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// For cpython macros
-#![allow(unused_braces, clippy::manual_strip)]
-
-use cpython::{
-    py_exception, py_fn, py_module_initializer, PyBytes, PyModule, PyObject, PyResult, Python,
-};
+use pyo3::create_exception;
+use pyo3::exceptions::PyException;
+use pyo3::prelude::*;
+use pyo3::types::PyBytes;
 
 use self::decoder::Decoder;
 use self::encoder::Encoder;
-use self::errors::pyresult_from;
 
 mod consts;
 mod decoder;
@@ -30,70 +27,63 @@ mod errors;
 mod helpers;
 mod reader;
 
-py_exception!(native_codec_impl, PyCodecError);
+create_exception!(native_codec_impl, PyCodecError, PyException);
 
 /// Strips 131 byte header and unpacks if the data was compressed.
-fn binary_to_term(py: Python, b: PyBytes, opts: PyObject) -> PyResult<PyObject> {
-    let mut dec_state = Decoder::new(py, opts)?;
-    let mut reader = b.data(py).into();
-    pyresult_from(dec_state.decode_with_131tag(&mut reader))
+#[pyfunction]
+fn binary_to_term<'py>(
+    b: &Bound<'py, PyBytes>,
+    opt: &Bound<'py, PyAny>,
+) -> PyResult<Bound<'py, PyAny>> {
+    let mut dec_state = Decoder::new(b.py(), opt)?;
+    let mut reader = b.as_bytes().into();
+    Ok(dec_state.decode_with_131tag(&mut reader)?)
 }
 
-fn binary_to_term_2(py: Python, b: PyBytes, opts: PyObject) -> PyResult<PyObject> {
-    let mut dec_state = Decoder::new(py, opts)?;
-    let mut reader = b.data(py).into();
-    let result = dec_state.decode(&mut reader);
-    pyresult_from(result)
+#[pyfunction]
+fn binary_to_term_2<'py>(
+    b: &Bound<'py, PyBytes>,
+    opt: &Bound<'py, PyAny>,
+) -> PyResult<Bound<'py, PyAny>> {
+    let mut dec_state = Decoder::new(b.py(), opt)?;
+    let mut reader = b.as_bytes().into();
+    Ok(dec_state.decode(&mut reader)?)
 }
 
-fn term_to_binary(py: Python, py_term: PyObject, opt: PyObject) -> PyResult<PyBytes> {
+#[pyfunction]
+fn term_to_binary<'py>(
+    py_term: &Bound<'py, PyAny>,
+    opt: &Bound<'py, PyAny>,
+) -> PyResult<Bound<'py, PyBytes>> {
+    let py = py_term.py();
     let mut enc_state = Encoder::new(py, opt)?;
 
     // Rest of the function is identical to ``term_to_binary_2`` except that
     // 131 byte is pushed to the output before the encoder is called
     enc_state.data.push(consts::ETF_VERSION_TAG);
 
-    enc_state.encode(&py_term)?;
+    enc_state.encode(py_term)?;
     Ok(PyBytes::new(py, enc_state.data.as_ref()))
 }
 
-fn term_to_binary_2(py: Python, py_term: PyObject, opt: PyObject) -> PyResult<PyBytes> {
+#[pyfunction]
+fn term_to_binary_2<'py>(
+    py_term: &Bound<'py, PyAny>,
+    opt: &Bound<'py, PyAny>,
+) -> PyResult<Bound<'py, PyBytes>> {
+    let py = py_term.py();
     let mut enc_state = Encoder::new(py, opt)?;
-    enc_state.encode(&py_term)?;
+    enc_state.encode(py_term)?;
     Ok(PyBytes::new(py, enc_state.data.as_ref()))
 }
 
-// add bindings to the generated python module
-// N.B: names: "librust2py" must be the name of the `.so` or `.pyd` file
-#[inline]
-fn m_init(py: Python, m: &PyModule) -> PyResult<()> {
-    m.add(py, "__doc__", "Erlang Term Format encoding and decoding.")?;
-    m.add(
-        py,
-        "binary_to_term",
-        py_fn!(py, binary_to_term(b: PyBytes, opt: PyObject)),
-    )?;
-    m.add(
-        py,
-        "binary_to_term_2",
-        py_fn!(py, binary_to_term_2(b: PyBytes, opt: PyObject)),
-    )?;
-    m.add(
-        py,
-        "term_to_binary",
-        py_fn!(py, term_to_binary(py_term: PyObject, opt: PyObject)),
-    )?;
-    m.add(
-        py,
-        "term_to_binary_2",
-        py_fn!(py, term_to_binary_2(py_term: PyObject, opt: PyObject)),
-    )?;
-    m.add(py, "PyCodecError", py.get_type::<PyCodecError>())?;
+#[pymodule]
+fn native_codec_impl(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add("__doc__", "Erlang Term Format encoding and decoding.")?;
+    m.add_function(wrap_pyfunction!(binary_to_term, m)?)?;
+    m.add_function(wrap_pyfunction!(binary_to_term_2, m)?)?;
+    m.add_function(wrap_pyfunction!(term_to_binary, m)?)?;
+    m.add_function(wrap_pyfunction!(term_to_binary_2, m)?)?;
+    m.add("PyCodecError", m.py().get_type::<PyCodecError>())?;
     Ok(())
 }
-py_module_initializer!(
-    native_codec_impl,
-    initnative_codec_impl,
-    PyInit_native_codec_impl,
-    |py, m| { m_init(py, m) }
-);

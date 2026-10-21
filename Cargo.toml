@@ -7,9 +7,9 @@ edition = "2021"
 [lib]
 crate-type = ["cdylib"]
 
-[dependencies.cpython]
-version = "0.7.2"
-features = ["extension-module"]
+[dependencies.pyo3]
+version = "0.30"
+features = ["extension-module", "abi3-py310"]
 
 [dependencies]
 flate2 = "1"
