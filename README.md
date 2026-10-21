@@ -32,25 +32,29 @@ To install rust (from https://www.rust-lang.org/tools/install):
 curl https://sh.rustup.rs -sSf | sh
 ```
 
-Then install the build requirements before installing pyrlang-term:
-
-```
-pip install setuptools-rust semantic_version
-pip install pyrlang-term
-```
+Build requirements are installed automatically from `pyproject.toml`. If the
+Rust extension cannot be built, installation falls back to the Python codec.
 
 ### From Source
 
 1. Clone [Term](https://github.com/Pyrlang/Term) repository
-2. Install Term from source: Go to Term directory and `pip install -e .`
+2. Install [uv](https://docs.astral.sh/uv/getting-started/installation/).
+3. Go to the Term directory and run `uv sync --extra dev`.
+
+Package metadata, optional dependencies, and the Rust extension configuration
+are defined in `pyproject.toml`. To build a source distribution and wheel, run
+`uv build`. Rust sources are included in source distributions via `MANIFEST.in`.
 
 ## Testing
 
 To run the tests:
 
 ```
-python -m unittest discover test
+uv run --extra dev pytest
 ```
+
+The tests exercise both codecs and require a working Rust extension.
+Documentation dependencies can be installed with `uv sync --extra docs`.
 
 
 ## Atoms
@@ -78,9 +82,8 @@ Out[3]: ({Atom('foo'): b'list'}, b'')
 
 To allow for this we've added another atom type `StrictAtom` that will give you:
 ```python
-In [4]: codec.binary_to_term(data, {'atom': "StrictAtom"})
-Out[4]: ({StrictAtom('foo'): b'atom', 'foo': b'list'}, b'')
-
+In[4]: codec.binary_to_term(data, {"atom": "StrictAtom"})
+Out[4]: ({StrictAtom("foo"): b"atom", "foo": b"list"}, b"")
 ```
 Still `StrictAtom('foo') == 'foo'` so it you need something different still, you
 can put in your custom atom class

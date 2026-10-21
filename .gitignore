@@ -1,5 +1,8 @@
 /build
 /venv
+/.venv
+/dist
+/uv.lock
 /target
 *.egg-info
 *.pyc

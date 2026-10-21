@@ -29,7 +29,7 @@ jobs:
 
           CIBW_ENVIRONMENT: 'PATH="$PATH:$HOME/.cargo/bin"'
 
-          CIBW_SKIP: cp2* pp* cp35* *win*
+          CIBW_SKIP: cp2* pp* cp35* cp36* *win*
           CIBW_BUILD_VERBOSITY: 1
 
           #CIBW_TEST_REQUIRES: pytest
@@ -50,8 +50,9 @@ jobs:
         name: Install Python
         with:
           python-version: '3.7'
+      - uses: astral-sh/setup-uv@v7
       - name: Build sdist
-        run: python setup.py sdist
+        run: uv build --sdist
       - name: Upload sdist artifact
         uses: actions/upload-artifact@v2
         with:

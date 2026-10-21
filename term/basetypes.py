@@ -1,20 +1,17 @@
-from typing import Union, List, Any
+from typing import Any
 
 
 class BaseTerm:
-    """ Base class for all Erlang terms. """
-    pass
+    """Base class for all Erlang terms."""
 
 
 class BasePid(BaseTerm):
-    """ Serves as a base for local pid and remote pid. """
-    pass
+    """Serves as a base for local pid and remote pid."""
 
 
 class BaseRef(BaseTerm):
-    """ Serves as a base for local ref and remote ref. """
-    pass
+    """Serves as a base for local ref and remote ref."""
 
 
 # Type AnyTerm includes Erlang type wrappers + compatible Python types
-Term = Union[str, List[Any], tuple, dict, int, float, bytes, BaseTerm, None]
+Term = str | list[Any] | tuple | dict | int | float | bytes | BaseTerm | None

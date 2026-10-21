@@ -1,2 +1,40 @@
 [build-system]
-requires = ["setuptools", "wheel", "setuptools-rust"]
+requires = ["setuptools>=62.4", "setuptools-rust>=1.7"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyrlang-term"
+version = "1.5a0"
+requires-python = ">=3.10"
+description = "Erlang term and External Term Format codec in Python and native Rust extension"
+readme = "README.md"
+authors = [
+    {name = "Erlang Solutions Ltd and S2HC Sweden AB"},
+    {email = "dmytro.lytovchenko@gmail.com"},
+    {email = "pyrlang@s2hc.com"},
+]
+
+[project.urls]
+Homepage = "https://github.com/Pyrlang/Term"
+
+[project.optional-dependencies]
+dev = ["pytest"]
+docs = [
+    "Jinja2>=2.10.1",
+    "MarkupSafe>=1.0",
+    "Pillow>=4.0.0",
+    "Pygments>=2.2.0",
+    "Sphinx>=1.6.2",
+]
+
+[tool.setuptools]
+packages = ["term"]
+zip-safe = false
+
+[[tool.setuptools-rust.ext-modules]]
+target = "term.native_codec_impl"
+binding = "RustCPython"
+optional = true
+
+[tool.pytest.ini_options]
+testpaths = ["test"]

@@ -5,8 +5,7 @@
 
 LIBNAME=native_codec_impl
 ROOT=$(shell pwd)
-PIP=pip3
-PY=python3
+UV=uv
 
 #.PHONY: compile
 #compile:
@@ -20,10 +19,7 @@ clearterminal:
 
 .PHONY: test
 test: clearterminal
-	for f in $(shell ls test/*_test.py); do \
-		echo "RUNNING $$f"; \
-		$(PY) $$f || exit 1; \
-	done
+	$(UV) run --extra dev pytest
 
 .PHONY: clearterminal dtest
 dtest: compile
@@ -32,22 +28,19 @@ dtest: compile
 .PHONY: docs
 docs:
 	rm -rf $(ROOT)/docs; \
-	cd docs-src && \
-	$(MAKE) html && \
+	$(UV) run --extra docs sphinx-build -M html docs-src/source docs-src/build && \
 	mv -f $(ROOT)/docs-src/build/html $(ROOT)/docs && \
 	touch $(ROOT)/docs/.nojekyll
 
 #
 # Installing for development, and for release
 #
-.PHONY: install dev requirements
-requirements:
-	$(PIP) install -r requirements.txt
-dev: requirements
-	$(PY) setup.py develop
+.PHONY: install dev
+dev:
+	$(UV) sync --extra dev
 
-install: requirements
-	$(PY) setup.py install
+install:
+	$(UV) pip install .
 
 # Run Pyre type check (requires: pip install pyre-check):
 .PHONY: pyre
